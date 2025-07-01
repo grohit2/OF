@@ -1,0 +1,14 @@
+aws:
+  region: us-east-2        # default region
+  profile: null            # set to your named profile or leave null
+
+scan:
+  limit: 1000              # items per DynamoDB Scan call
+  batch_size: 25           # items yielded to the migrator
+  checkpoint_path: .dynamo_scan.ckpt.json
+
+csv:
+  path: migration_log.csv
+
+logging:
+  level: INFO              # DEBUG|INFO|WARNING|ERROR
