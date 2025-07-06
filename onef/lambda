@@ -1,0 +1,489 @@
+Based on the images, here is the complete text content extracted from the Lambda Gear v4 README documentation:
+
+# README.md
+
+## Overview
+
+Use Lambda Gear v4 to create new AWS Lambda functions, and to modify and delete existing AWS Lambda functions.
+
+Lambda Gear v4.x features the following capabilities:
+
+• Allows modifications to existing Lambdas
+• Drops the dependency on Terraform state files
+• Provides better error messaging
+• Allows faster execution
+• Enables multi-region support
+• Supports canary deployments with AWS CodeDeploy
+• Supports automatic rollback during deployment period using AWS CodeDeploy
+
+## Audience
+
+Use this guide if you use one of the Serverless Function Managed Pipelines that use the Lambda Gear v4 to manage the Lambda infrastructure.
+
+## User Guide
+
+### Getting Started
+
+1. Read Onboarding to PAR (Pre-approved Release), the prerequisite documentation to using a managed pipeline.
+
+2. Use a Serverless Function Managed Pipeline, and determine from the following, which pipeline flavor satisfies your requirements:
+   ○ API: Lambda fronted by an ALB (Application Load Balancer). The gear creates the ALB.
+   ○ Composite: A combination of the API, pull event, push event, and scheduled event pipeline flavors that uses a CloudFormation template to define the different combination of serverless resources.
+   ○ Pull Event: Lambda polls a data source, such as SQS (Amazon Simple Queue Service) and invokes the function with any new records or messages that arrive at the data source.
+   ○ Push Event: Lambda invoked by push events from SNS (Amazon Simple Notification Service) and S3 (Amazon Simple Storage Service).
+   ○ Scheduled Event: Lambda invoked by an Amazon CloudWatch cron or event-pattern trigger.
+   ○ CloudWatch Rule Gear manages the triggers.
+
+For more information about getting started with a managed pipeline, see Getting Started & Onboarding.
+
+To get started with the Serverless Function Managed Pipeline, follow the steps below to onboard to the One Pipeline:
+
+• Get prerequisite accesses.
+• Ensure PAR compliance.
+• Onboard to One Pipeline. You can choose to onboard with One Pipeline UI by following the instructions below:
+  i. Navigate to the One Pipeline UI.
+  ii. Choose the Onboard tab under Pipeline.
+  iii. Select your team and the component that you want to onboard (or create one) and choose Next.
+  iv. Select Create a Managed Pipeline and choose Next.
+  v. Under Please Select Your Use Case, choose any option beginning with Deploy a Lambda.
+  vi. Continue to fill out all required fields through the UI to generate your Bogie file V2.
+
+## Supported Use Cases
+
+### Lambda in a Virtual Private Cloud
+
+The example Gearsfile below creates a Lambda function with the following characteristics:
+
+• The target AWS account is configured in BogiefileV2.
+• Values set for ba, component and owner is mapped to the mandatory tags on the function. Additional custom tags in the function use the format: exampleKey: exampleValue.
+• An additional custom tag on the function is customTagKey: customTagValue
+• A region-specific custom tag on the function is customRegionKey: customRegionValue
+
+```
+- name: dev-east-lambda
+  gear: aws-lambda:v4
+  inputs:
+    ba: BACHANGEME # specify value for mandatory tag BA
+    component: APPCHANGEME # specify value for mandatory tag Component
+    owner: bucket.owner@capitalone.com # specify value for mandatory tag OwnerContact
+    function_name: mylambdafunction
+    description: My lambda function created in us-east-1
+    execution_role: arn:aws:iam::123456789012:role/CapOne-Techops-Dev-CustomRole-CHANGEME
+    handler: bogie-lambda-example/src/lambda_function.lambda_handler
+    artifact: https://artifactory.cloud.capitalone.com:443/artifactory/generic-internalfacing/your/artifact/path
+    publish: True
+    runtime: python3.9
+    environment_variables:
+      HTTP_PROXY: "http://aws-proxy-dev.cloud.capitalone.com:8099"
+      HTTPS_PROXY: "http://aws-proxy-dev.cloud.capitalone.com:8099"
+    tags: # optional parameter (type is map)
+      customTagKey: customTagValue
+    regions:
+      - name: us-east-1
+        vpc: Tech Ops Dev East VPC
+        subnets:
+          - Tech Ops Dev East VPC - General3
+        security_groups:
+          - CoreServicesAccess-SG-20.04 # sg-031d90e43d892cc82
+          - sg-64cc9300 | App-SG
+          - sg-09e82b7c4d8d819c0 # Enterprise-AllInstances-SG-20.04
+        kms_key: alias/cof/lambda/encrypted
+        tags: # region specific tag
+          customRegionKey: customRegionValue
+```
+
+### Lambda@Edge Location
+
+The example below illustrates how to run functions to customize the content that CloudFront delivers.
+
+```
+- name: dev-east-lambda
+  gear: aws-lambda:v4
+  inputs:
+    ba: BACHANGEME # specify value for mandatory tag BA
+    component: APPCHANGEME # specify value for mandatory tag Component
+    owner: bucket.owner@capitalone.com # specify value for mandatory tag OwnerContact
+    function_name: mylambdafunction
+    description: My lambda function created in us-east-1
+    execution_role: CapOne-Techops-Dev-CustomRole-CHANGEME
+    handler: bogie-lambda-example/src/lambda_function.lambda_handler
+    artifact: https://artifactory.cloud.capitalone.com:443/artifactory/generic-internalfacing/your/artifact/path
+    publish: True
+    runtime: python3.9
+    is_edge: True
+```
+
+Here is the complete text content extracted from the additional Lambda Gear v4 README documentation images:
+
+```
+- name: dev-east-lambda
+  gear: aws-lambda:v4
+  inputs:
+    ba: BACHANGEME # specify value for mandatory tag BA
+    component: APPCHANGEME # specify value for mandatory tag Component
+    owner: bucket.owner@capitalone.com # specify value for mandatory tag OwnerContact
+    function_name: mylambdafunction
+    description: My lambda function created in us-east-1
+    execution_role: CapOne-Techops-Dev-CustomRole-CHANGEME
+    handler: bogie-lambda-example/src/lambda_function.lambda_handler
+    artifact: https://artifactory.cloud.capitalone.com:443/artifactory/generic-internalfacing/your/artifact/path
+    publish: True
+    runtime: python3.9
+    is_edge: True
+    environment_variables:
+      HTTP_PROXY: "http://aws-proxy-dev.cloud.capitalone.com:8099"
+      HTTPS_PROXY: "http://aws-proxy-dev.cloud.capitalone.com:8099"
+    regions:
+      - name: us-east-1
+        kms_key: alias/cof/lambda/encrypted
+```
+
+📝 **NOTE**
+
+Lambda@Edge is required in the Content Delivery Managed Pipeline, and set up correctly in the Lambda Gear using the `is_edge` parameter.
+
+### Lambda Triggered by S3 Bucket Notification
+
+To trigger Lambda functions with S3 Bucket notifications, use the S3 Data Gear to create the bucket and to set the SNS notification.
+
+```
+- name: dev-east-s3bucket
+  gear: s3-data:v4
+  inputs:
+    ...
+    regions:
+      - name: us-east-1
+        bucket_name: aws_lambda_test_bucket
+        ...
+        notifications:
+          - arn: arn:aws:lambda:us-east-1:123456789001:mylambdafunction:LIVE_TRAFFIC # matches the *
+            events:
+              - s3:ObjectCreated:*
+            prefix: Test-SDN
+            suffix: .log
+
+- name: dev-east-lambda
+  gear: aws-lambda:v4
+  inputs:
+    ba: BACHANGEME # specify value for mandatory tag BA
+    component: APPCHANGEME # specify value for mandatory tag Component
+    owner: bucket.owner@capitalone.com # specify value for mandatory tag OwnerContact
+    function_name: mylambdafunction
+    regions:
+      - name: us-east-1
+        ... # other required parameters
+        permissions:
+          - service_name: s3
+            resource_name: aws_lambda_test_bucket
+            source_account: 123456789012 # Account ID where the S3 bucket resides, required only for cross-account access
+            qualifiers:
+              - LIVE_TRAFFIC
+```
+
+The preceding Lambda Gear v4 configuration sets the permissions for the `LIVE_TRAFFIC` alias. To enable quick ramp-up, any existing versions or aliases undefined by the Gearsfile remain unaffected.
+
+For more information about how to configure AWS Lambda using functions, see versioning and aliases.
+
+### Lambda Triggered by SNS Subscription
+
+To successfully trigger Lambda functions with SNS subscription, use the SNS Gear to create your SNS topic and subscriptions, then explicitly set the Lambda function as a target.
+
+```
+- name: dev-east-sns
+  gear: sns:v3
+  inputs:
+    sns_topic: my-test-sns-topic
+    aws_region: us-east-1
+    ba: BACHANGEME
+    owner_contact: email@capitalone.com
+    subscriptions:
+      - endpoint: arn:aws:lambda:us-east-1:123456789123:mylambdafunction:LIVE_TRAFFIC # matches lambda function arn
+        protocol: lambda
+
+- name: dev-east-lambda
+  gear: aws-lambda:v4
+  inputs:
+    ba: BACHANGEME # specify value for mandatory tag BA
+    component: APPCHANGEME # specify value for mandatory tag Component
+    owner: sns.owner@capitalone.com # specify value for mandatory tag OwnerContact
+    function_name: mylambdafunction
+    regions:
+      - name: us-east-1
+        ...
+        permissions:
+          - service_name: "sns"
+            resource_name: "my-test-sns-topic"
+            qualifiers:
+              - LIVE_TRAFFIC
+```
+
+The Lambda Gear v4 configuration sets the permissions for the `LIVE_TRAFFIC` alias. To enable quick ramp-up, any existing versions or aliases undefined by the Gearsfile remain unaffected.
+
+For more information about how to configure AWS Lambda using functions, see versioning and aliases.
+
+### Lambda Onboarded to Security Group Rehydration
+
+In order to onboard to security group rehydration, simply set the `sg_rehydration_onboarded` parameter to true and then utilize the Security Group Finder Library aliases in your security groups (utilizing `sg-name-ga` or `sg-name-previous`).
+
+```
+- name: dev-east-lambda
+  gear: aws-lambda:v4
+  inputs:
+    ba: BACHANGEME
+    component: APPCHANGEME
+    owner: bucket.owner@capitalone.com
+    function_name: mylambdafunction
+    ...
+    sg_rehydration_onboarded: true
+    regions:
+      - name: us-east-1
+        vpc: Tech Ops Dev East VPC
+        subnets:
+          - Tech Ops Dev East VPC - General3
+        security_groups:
+          - CoreServicesAccess-SG-previous # sg-031d90e43d892cc82
+          - Enterprise-AllInstances-SG-ga
+```
+
+Once you set the `sg_rehydration_onboarded` parameter to true, simply call the `provision` entrypoint of the gear. That will then call the api that onboards the gear to the avr based sg rehydration. If the avr mechanism finds a mismatch between the sg finder alias and what is currently in production, it will call the `rehydrate` entrypoint. In the case of the lambda, the rehydrate entrypoint will mimic the `deploy` entrypoint's functionality. More info on this can be found here.
+
+### Lambda Triggered by Amazon Connect
+
+Here is the complete text content extracted from the additional Lambda Gear v4 README documentation images:
+
+For more information about how to configure AWS Lambda using functions, see versioning and aliases.
+
+### Lambda Fronted by ALB
+
+The gear can provision and manage an ALB fronting the Lambda function. The gear can perform one of the following:
+
+• **Create a new ALB.**
+  ○ Creates the ALB resources needed for proper functioning (target group and listeners). The listener rule is created for host-based routing using HTTPS protocol on port 443.
+  ○ Creates a region-specific Amazon Route 53 alias record (simple routing) and Capital One CNAME pointing to the ALB. A top-level Route 53 and Capital One CNAME is managed by the Cross-Region Router Gear, when using the API flavor managed pipeline.
+
+• **Re-use an existing ALB without affecting any existing target groups and Listener rules.**
+  ○ To add a Lambda target to an existing ALB, add the existing ALBs name under inputs > alb > name. This creates the ALB resources, Route 53 alias record, and Capital One CNAME as stated above and applies them to the existing ALB.
+
+To ensure the lowest latency, it can be beneficial to provision the ALB in the same subnets as the Lambda. The Gear can also accommodate provisioning the ALB in a different subnet than the Lambda i.e. the new Access Subnets in Small Accounts (v30+). More information on Small Account Version numbers can be found here. More information on Subnet Types for Small Accounts can be found here.To ensure high availability, AWS requires the use of subnets from at least two Availability Zones. For more information, see the Born Platinum Business Application Requirements.
+
+```
+- name: dev-east-lambda
+  gear: aws-lambda:v4
+  inputs:
+    ba: BACHANGEME # specify value for mandatory tag BA
+    component: APPCHANGEME # specify value for mandatory tag Component
+    owner: bucket.owner@capitalone.com # specify value for mandatory tag OwnerContact
+    function_name: mylambdafunction
+    description: My lambda function created in us-east-1
+    execution_role: arn:aws:iam::123456789012:role/CapOne-Techops-Dev-CustomRole-CHANGEME
+    handler: bogie-lambda-example/src/lambda_function.lambda_handler
+    artifact: https://artifactory.cloud.capitalone.com:443/artifactory/generic-internalfacing/your/artifact/path
+    publish: True
+    runtime: python3.9
+    environment_variables:
+      HTTP_PROXY: "http://aws-proxy-dev.cloud.capitalone.com:8099"
+      HTTPS_PROXY: "http://aws-proxy-dev.cloud.capitalone.com:8099"
+    tags: # optional parameter (type is map)
+      customTagKey: customTagValue
+    alb:
+      name: my-lambda-alb
+      target_group:
+        name: my-lambda-target-group
+        qualifier: LIVE_TRAFFIC
+        multi_value_headers_enabled: true
+      ssl_policy: ELBSecurityPolicy-FS-1-2-Res-2020-10
+      security_groups:
+        - CoreServicesAccess-SG-20.04 # SG common to ALBs in all regions. Use SG name, not ID
+        - Enterprise-AllInstances-SG-20.04 # SG common to ALBs in all regions. Use SG name, not ID
+      route53:
+        health_check_enabled: true
+        zone_name: aws-ito-dqa.cb4good.com
+    regions:
+      - name: us-east-1
+        vpc: Tech Ops Dev East VPC
+        subnets:
+          - Tech Ops Dev East VPC - General3
+          - Tech Ops Dev East VPC - General3
+        security_groups:
+          - CoreServicesAccess-SG-20.04 # sg-031d90e43d892cc82
+          - sg-64cc9300 | App-SG
+          - sg-09e82b7c4d8d819c0 # Enterprise-AllInstances-SG-20.04
+        kms_key: alias/cof/lambda/encrypted
+        alb:
+          security_groups:
+            - sg-64cc9300 | App-SG
+          https_cert_arn:
+            - arn:aws:acm:us-east-1:123456789012:certificate/12a3b4c5-678d-9e0f-1g2h-134567890123
+          access_logging:
+            bucket_name: cof-techops-dev-alb-access-logs-us-east-1
+            bucket_prefix: ASVCHANGEME/alb-test-access-logs
+          tags: # optional parameter (type is map)
+            customRegionKey: customRegionValue
+```
+
+Since the gear manages the ALB, the preceding example creates a Route 53 alias record (simple routing) and Capital One CNAME pointing to the ALB:
+
+• **Route 53 alias record:** mylambdafunction-lambda-us-east-1.aws-ito-dqa.cb4good.com
+• **Capital One CNAME:** mylambdafunction-lambda-us-east-1.clouddqt.capitalone.com (non-prod)
+
+The naming convention for the subdomain is: `{lambda_name}-lambda-{region}`.
+
+The gear adds a listener rule pointing to the respective target group for the ALB function.
+
+• **Default listener rule conditions are host-based.**
+• **The hosts used for the conditions are the function's CNAMEs and Route 53 records. Following are a few examples:**
+  ○ **Regional Capital One CNAME:** mylambdafunction-lambda-us-east-1.clouddqt.capitalone.com
+  ○ **Top-level Capital One CNAME:** mylambdafunction-lambda.clouddqt.capitalone.com
+  ○ **Regional Route 53 Record:** mylambdafunction-lambda-us-east-1.aws-ito-dqa.cb4good.com
+  ○ **Top-level Route 53 Record:** mylambdafunction-lambda.aws-ito-dqa.cb4good.com
+• **Supports path- and HTTP header-based routing.**
+
+```
+alb:
+  listener_rules:
+    - paths:
+        - /path1
+        - /path2
+      headers:
+        - name: User-Agent
+          values:
+            - "*chrome*"
+        - name: Content-Type
+          values:
+            - "application/json"
+            - "text/html"
+      priority: 1
+```
+
+⚠️ **WARNING**
+
+• For the Capital One CNAME, the `{lambda_name}` is truncated if it's greater than 46 characters.
+• Underscores are not allowed in Capital One CNAMEs, so they get replaced with a - (dash). For example, `my_lambda_function` in `us-east-1`, generates the subdomain as `my-lambda-function-lambda-us-east-1`.
+
+Here is the extracted content from the images you shared, reproduced as-is and structured for clarity:
+
+---
+
+### **Monorepo Artifacts**
+
+Artifacts are pulled from Artifactory and pushed to an S3 bucket for CloudFormation use. Artifacts are treated slightly differently based on whether a single artifact or a multi-artifact was created. To learn more about how to create a single artifact versus a multi-artifact, review the \[Serverless Function Monorepo Overview].
+
+* In the case of a single artifact, the artifact name does not contain `-multi-artifacts-` in it. The Lambda Gear simply uploads the artifact zip to an S3 bucket.
+* In the case of a multi-artifact, the bundled artifact name contains `-multi-artifacts-` in it. The Lambda Gear unzips the bundled artifact and uploads the enclosed artifacts, such as `GetPayment.zip`, `PostPayment.zip`, and `DeletePayment.zip`, to an S3 bucket. When using multiple artifacts, the Lambda Gear identifies which artifact to associate with which `AWS::Serverless::Function` and `AWS::Lambda::Function` resource type based on the resource name defined in the CloudFormation template.
+
+---
+
+### **Use Case 1 (One Artifact – Multiple Handlers)**
+
+#### **Use Case 1 Conditions**
+
+* One GitHub repository contains a microservice application (for example, Card-Payment-Service)
+* One Artifact with multiple handlers
+
+  * **Artifact 1 - Handler 1:** supports endpoint (for example, `GetPayment`) and deployed to the `GetPayment` function
+  * **Artifact 1 - Handler 2:** supports endpoint (for example, `PostPayment`) and deployed to the `PostPayment` function
+  * **Artifact 1 - Handler 3:** supports endpoint (for example, `DeletePayment`) and deployed to the `DeletePayment` function
+
+---
+
+#### **Compared to Use Case 2**
+
+* One bundled artifact deployed across multiple AWS Lambda functions ("handlers")
+* Less resilient than **Use Case 2** because of the risk of single artifact (meaning changes to `GetPayment` endpoint can impact `PostPayment` endpoint)
+* Unnecessary `PostPayment` logic injected into `GetPayment` logic
+* Credentials of `GetPayment` can be leaked into credentials of `PostPayment`
+* Refer to **Use Case 2** if you want to deploy multiple artifacts (for example, `GetPayment.zip`, `PostPayment.zip`, `DeletePayment.zip`)
+
+---
+
+### **Use Case 2 (Multiple Artifacts – Multiple Handlers)**
+
+#### **Use Case 2 Conditions**
+
+* One GitHub repository contains a microservice application (for example, Card-Payment-Service)
+* Multiple artifacts with multiple handlers
+
+  * **Artifact 1 - Handler 1:** supports endpoint (for example, `GetPayment`) and deployed to `GetPayment` function
+  * **Artifact 2 - Handler 2:** supports endpoint (for example, `PostPayment`) and deployed to `PostPayment` function
+  * **Artifact 3 - Handler 3:** supports endpoint (for example, `DeletePayment`) and deployed to `DeletePayment` function
+
+---
+
+#### **Compared to Use Case 1**
+
+* A GitHub repository outputs multiple artifacts (`GetPayment.zip`, `PostPayment.zip`, `DeletePayment.zip`)
+* Separation of Duty (SOD), such that each artifact handles one logic unit (that is, one endpoint)
+* IAM Role has least privileged capabilities
+* Even more resilient than **Use Case 1** because unique artifacts are created. If an issue with an artifact arises, other artifacts can be impacted.
+
+---
+
+### **Bogiefile Example**
+
+```yaml
+- name: qa-aws-lambda-monorepo
+  gears: aws-lambda^4
+  inputs:
+    ba: BACHANGEME # specify value for mandatory tag BA
+    component: APPCHANGEME # specify value for mandatory tag Component
+    owner: Cloudformation.owner@capitalone.com # specify value for mandatory tag OwnerContact
+    description: Mono Repo Micro Services Serverless application (SAM)
+    monorepo: yes # indicates monorepo is enabled.
+    tags: # optional parameter (type is map)
+      customTagKeys: customTagValue
+    deployment_configs: # optional parameter (type is map)
+      rollout_strategy: Linear=45minutes # Canary rollout strategy, defaulted to `linear=15minutes`
+    regions:
+      - us-east-1
+        _s3_bucket: <EAST-BUCKET-CHANGEME> # Required to store artifacts temporary during application (
+      - us-west-2
+        _s3_bucket: <WEST-BUCKET-CHANGEME>
+```
+
+---
+
+Let me know if you'd like a markdown or cleaned-up version of this content or need help applying this to your project.
+Here is the extracted content from the image exactly as shown:
+
+---
+
+### **Opentelemetry**
+
+**[Opentelemetry (OTel)](https://opentelemetry.io/)** is a vendor agnostic observability tool suite that allows developers to see how their own services depend on or affect other services.
+
+---
+
+### 🔗 About Observability
+
+To understand a system from the outside, observability helps by asking questions about the system without knowing its inner workings. It allows easy troubleshooting and handling of novel problems, such as “unknown unknowns”, and helps to answer the question, “Why is this happening?”
+
+To ask questions about a system, the application must be properly instrumented. The application code must emit **signals** such as **traces**, **metrics**, and **logs**. An application is properly instrumented when developers don’t need to add more instrumentation to troubleshoot an issue, because they have all the information they need.
+
+**Opentelemetry** is the mechanism by which application code is instrumented, to help make a system observable.
+
+🔗 source [**Observability Primer**](#)
+
+---
+
+### **Use OTel with AWS Lambda**
+
+Use Opentelemetry with AWS Lambda and forward telemetry data to an Observability Platform of choice, such as New Relic. AWS provides a custom Opentelemetry Collector component in the form of a Lambda layer.
+
+The following are supported runtimes:
+
+* **Node.js 14, 16, 18, 20, and 22**
+* **Python 3.8 and 3.9**
+* **Java 8, 11, 17 and 21**
+* **provided.al2** for use with go and other languages needing the custom runtime
+
+---
+
+Below are some helpful links:
+
+* [Instrumentation Guidance for Popular Programming Languages](#)
+* [Capital One Onboarding Guidance](#)
+* [Lambda Gear usecase example](#)
+
+---
+
+Let me know if you want this formatted into a README or markdown document.

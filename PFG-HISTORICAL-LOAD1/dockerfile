@@ -1,0 +1,34 @@
+FROM artifactory-edge-staging.cloud.capitalone.com/babogie-docker/community-images/maven:java21-250219 AS builder
+
+USER root
+WORKDIR /app
+COPY . .
+RUN ["mvn", "clean", "install"]
+
+FROM artifactory-edge-staging.cloud.capitalone.com/baenterprisesharedimages-docker/Languages/java:21-ubuntu24.04-build-base-202506022031 AS stage0
+
+LABEL MAINTAINER="noreply-peg@capitalone.com"
+LABEL ASV="ASVPROMETHEUSFINANCIALCORE"
+LABEL ownercontact="peg@capitalone.com"
+
+ARG EXTRACTED_LAYERS=/app/target/extracted-layers
+ARG DOCKER_FOLDER=/app/docker
+ENV JAVA_OPTS=""
+ENV LOG_CONFIG_FILE=logback-spring.xml
+
+WORKDIR /app
+
+USER root
+COPY --from=builder /app/git.properties /app/git.properties
+COPY --from=builder ${DOCKER_FOLDER}/entrypoint.sh /app/entrypoint.sh
+COPY --from=builder ${DOCKER_FOLDER}/${LOG_CONFIG_FILE} ${LOG_CONFIG_FILE}
+COPY --from=builder ${EXTRACTED_LAYERS}/spring-boot-loader/ ./
+COPY --from=builder ${EXTRACTED_LAYERS}/dependencies/ ./
+COPY --from=builder ${EXTRACTED_LAYERS}/snapshot-dependencies/ ./
+COPY --from=builder ${EXTRACTED_LAYERS}/application/ ./
+
+RUN ["chmod", "-R", "u=rx,g=rx", "/app"]
+
+USER appuser
+
+ENTRYPOINT ["sh", "./entrypoint.sh"]

@@ -1,0 +1,66 @@
+version: "3"
+networks:
+  historicalload:
+    driver: bridge
+
+services:
+  ### DynamoDB Service ###
+  dynamodb:
+    command: -jar DynamoDBLocal.jar -sharedDb -dbPath /data
+    image: amazon/dynamodb-local:latest
+    ports:
+      - 8000:8000
+    volumes:
+      - ../dynamodb-data:/home/dynamodblocal/data
+    working_dir: /home/dynamodblocal
+    networks:
+      - historicalload
+
+  ### DynamoDB Data Migration ###
+  dynamodb-migration:
+    image: artifactory-dockerhub.cloud.capitalone.com/amazon/aws-cli
+    depends_on:
+      - dynamodb
+    volumes:
+      - ../dynamodb-resources:/home/dynamodblocal-migration
+    working_dir: /home/dynamodblocal-migration
+    environment:
+      AWS_ACCESS_KEY_ID: dummy
+      AWS_SECRET_ACCESS_KEY: dummy
+      AWS_REGION: us-east-1
+    entrypoint: ["/bin/bash"]
+    command: -c ./entrypoint.sh
+    networks:
+      - historicalload
+
+  ### Run Service ###
+  historicalload:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 8080:8080
+      - 5005:5005
+    environment:
+      JAVA_OPTS: "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
+      CONTAINER_ID: ${CONTAINER_ID:-local}
+      CLUSTER_ID: ${CLUSTER_ID:-local}
+
+      ## AWS Configuration
+      AWS_ACCESS_KEY_ID: dummy
+      AWS_SECRET_ACCESS_KEY: dummy
+
+      ## Common Configuration
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+
+      ## DynamoDB Configuration
+      PFC_ENV: "local"
+      DYNAMODB_ENDPOINT: "http://dynamodb:8000"
+      DYNAMODB_REGION: "us-east-1"
+      DYNAMODB_API_CALL_TIMEOUT: "5 seconds"
+    depends_on:
+      - dynamodb
+    links:
+      - dynamodb
+    networks:
+      - historicalload
